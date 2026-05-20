@@ -669,6 +669,60 @@ dcomp CFa(dcomp u, std::vector<double> params, double lambda, double tau, bool t
 	return exp(C + D*nu0);
 }
 
+dcomp CFaDD(dcomp u, std::vector<double> params, double lambda, double tau, bool type = 1)
+{
+    //#Albrecher et al. (2007)
+    //My model with two displacments under r and p
+    double theta = params[0], sigma = params[1], rho = params[2], kappa = params[3], nu0 = params[4], x = params[5], y = params[6];
+    double b;
+    double zeta;
+    dcomp c, d, C, C2, D, h;
+    if (type == 1)
+        zeta = 1.0;
+    if (type == 0)
+        zeta = -1.0;
+    double mod = 1;
+    if(x+y!=0) mod = (x+y)/2.0/sqrt(x+y);
+    b = kappa + lambda - (1.0 + zeta) / 2.0 * rho*sigma*mod;
+    h = b - u*rho*sigma*i1*mod;
+    d = pow(pow(-h,2) - (u*zeta*i1 - pow(u,2))*pow(sigma,2),0.5);
+    c = (h - d) / (h + d); //#    == 1 / g;
+    if (std::isinf(real(c)))
+        C = (kappa*theta + sqrt(x*y)*rho*sigma*i1*u + sqrt(x*y)*(1.0 + zeta)/2.0*rho*sigma) / pow(sigma,2) * (h - d)*tau;
+    else
+        C = (kappa*theta + sqrt(x*y)*rho*sigma*i1*u + sqrt(x*y)*(1.0 + zeta)/2.0*rho*sigma) / pow(sigma,2) * ((h - d)*tau - 2.0 * log((1.0 - c*exp(-d*tau)) / (1.0 - c)));
+    D = (h - d) / pow(sigma,2) * ((1.0 - exp(-d*tau)) / (1.0 - c*exp(-d*tau)));
+    C2 = tau*y*(zeta*i1*u/2.0 - 0.5*u*u) + 0.5*x/sigma/sigma*(c*c*exp(d*tau) + (c*c - 1.0)*log(1.0 - c)*(exp(d*tau) - c) - (c*c - 1.0)*(exp(d*tau) - c)*log(exp(d*tau) - c) - c*c - c*exp(d*tau) + c*d*tau + c - d*tau*exp(d*tau))/(c*c*d*(c - exp(d*tau)));
+    return exp(C + C2 + D*nu0);
+}
+
+dcomp CFaDD2(dcomp u, std::vector<double> params, double lambda, double tau, bool type = 1)
+{
+    //#Albrecher et al. (2007)
+    //Their model, originaly only with y, has v dependent rho, rho = rho0 * v/sqrt((v+x)(v+y))
+    double theta = params[0], sigma = params[1], rho = params[2], kappa = params[3], nu0 = params[4], x = params[5], y = params[6];
+    double b;
+    double zeta;
+    dcomp c, d, C, C2, D, h;
+    if (type == 1)
+        zeta = 1.0;
+    if (type == 0)
+        zeta = -1.0;
+    double vt = theta + (nu0 - theta)*exp(-kappa*tau);
+    double rho0 = rho*sqrt((vt+x)*(vt+y))/vt;
+    b = kappa + lambda - (1.0 + zeta) / 2.0 * rho0*sigma;
+    h = b - u*rho0*sigma*i1;
+    d = pow(pow(-h,2) - (u*zeta*i1 - pow(u,2))*pow(sigma,2),0.5);
+    c = (h - d) / (h + d); //#    == 1 / g;
+    if (std::isinf(real(c)))
+        C = (kappa*theta) / pow(sigma,2) * (h - d)*tau;
+    else
+        C = (kappa*theta) / pow(sigma,2) * ((h - d)*tau - 2.0 * log((1.0 - c*exp(-d*tau)) / (1.0 - c)));
+    D = (h - d) / pow(sigma,2) * ((1.0 - exp(-d*tau)) / (1.0 - c*exp(-d*tau)));
+    C2 = tau*y*(zeta*i1*u/2.0 - 0.5*u*u) + 0.5*x/sigma/sigma*(c*c*exp(d*tau) + (c*c - 1.0)*log(1.0 - c)*(exp(d*tau) - c) - (c*c - 1.0)*(exp(d*tau) - c)*log(exp(d*tau) - c) - c*c - c*exp(d*tau) + c*d*tau + c - d*tau*exp(d*tau))/(c*c*d*(c - exp(d*tau)));
+    return exp(C + C2 + D*nu0);
+}
+
 std::vector<dcomp> CFaV(
 	std::vector<dcomp> u, std::vector<double> params, double lambda, double tau, bool type = 1)
 {
@@ -737,6 +791,34 @@ dcomp CFaSZ(dcomp u, std::vector<double> params, double lambda, double tau, bool
 		A = (beta-d)*pow(kappa,2)*pow(theta,2)/pow(d,3)/gamma*(beta*(d*tau-4.0)+d*(d*tau-2.0)+(4.0*exp(-d/2.0*tau)*((pow(d,2)-2.0*pow(beta,2))/(beta+d)*exp(-d/2.0*tau)+2.0*beta))/(1.0-g*exp(-d*tau))) + 0.25*(beta-d)*tau-0.5*log((g*exp(-d*tau)-1.0)/(g-1.0));
 		//#A = (beta-d)*kappa^2*theta^2/2/d^3/sigma^2*((d^3 *tau *(e^(d *tau)+1)+2 *d^2 *(beta*tau*e^(d*tau)+2)+8*beta^2*(e^((d*tau)/2)-1)+d*beta*(beta*tau*e^(d*tau)+8*e^((d*tau)/2)-beta*tau))/((beta*(e^(d*tau)-1)+d*(e^(d*tau)+1)))) + 1/4*(beta-d)*tau-1/2*log((g*exp(-d*tau)-1)/(g-1))	#alternative formula
 	return exp(A + Bs*nu0 + Bv*pow(nu0,2));
+}
+
+dcomp CFaSZDD(dcomp u, std::vector<double> params, double lambda, double tau, bool type = 1)
+{
+    double zeta;
+    if (type == 1)
+        zeta = 1.0;
+    if (type == 0)
+        zeta = -1.0;
+    //My model with displacment under r
+    double theta = params[0], sigma = params[1], rho = params[2], kappa = params[3], nu0 = params[4], x = params[5];
+    dcomp alpha = -0.5*u*(u+i1);
+    dcomp beta = 2.0*(kappa-i1*sigma*rho*u);
+    double gamma = 2.0*pow(sigma,2);
+    dcomp d = sqrt(pow(beta,2)-4.0*alpha*gamma);
+    dcomp g = (beta-d)/(beta+d);
+    dcomp Bs = 2.0*(kappa*theta + x*(rho*sigma*i1*u + rho*sigma*(1.0 + zeta)/2.0))*(beta-d)*pow(1.0-exp(-d/2.0*tau),2)/d/gamma/(1.0-g*exp(-d*tau));
+    dcomp Bs2 = x*(zeta*i1*u - u*u)*tau;
+    dcomp Bv = (beta-d)*(1.0-exp(-d*tau))/2.0/gamma/(1.0-g*exp(-d*tau));
+    dcomp A;
+    dcomp intB = -(-g*log(exp(d*tau)-g)-log(exp(d*tau)-g)-4.0*sqrt(g)*atanh(exp((d*tau)/2.0)/sqrt(g))+d*tau+g*log(1.0-g)+log(1.0-g)+4.0*sqrt(g)*atanh(1.0/sqrt(g)))/(d*g);
+    dcomp A2 = x*x*(zeta/2.0*i1*u - 0.5*u*u)*tau + x*(rho*sigma*i1*u + rho*sigma*(1.0 + zeta)/2.0 )* intB;
+    if (std::isinf(real(g)))
+        A = 0;
+    else
+        A = (beta-d)*pow(kappa,2)*pow(theta,2)/pow(d,3)/gamma*(beta*(d*tau-4.0)+d*(d*tau-2.0)+(4.0*exp(-d/2.0*tau)*((pow(d,2)-2.0*pow(beta,2))/(beta+d)*exp(-d/2.0*tau)+2.0*beta))/(1.0-g*exp(-d*tau))) + 0.25*(beta-d)*tau-0.5*log((g*exp(-d*tau)-1.0)/(g-1.0));
+        //#A = (beta-d)*kappa^2*theta^2/2/d^3/sigma^2*((d^3 *tau *(e^(d *tau)+1)+2 *d^2 *(beta*tau*e^(d*tau)+2)+8*beta^2*(e^((d*tau)/2)-1)+d*beta*(beta*tau*e^(d*tau)+8*e^((d*tau)/2)-beta*tau))/((beta*(e^(d*tau)-1)+d*(e^(d*tau)+1)))) + 1/4*(beta-d)*tau-1/2*log((g*exp(-d*tau)-1)/(g-1))    #alternative formula
+    return exp(A + A2 + (Bs+Bs2)*nu0 + Bv*pow(nu0,2));
 }
 
 dcomp CFaSZ2d(dcomp u, std::vector<double> params, double lambda, double tau, bool type = 1)
@@ -819,6 +901,25 @@ double hestonAttari(std::vector<double> paramsPos, double F, double K, double rd
 	return attariPre(F, K, rd, tau, u, I1);	
 }
 
+//version for displaced diffusion
+
+// [[Rcpp::export]]
+double hestonAttariDD(std::vector<double> paramsPos, double F, double K, double rd, double tau)
+{
+    double beta = paramsPos[5];
+    paramsPos[0] *= beta*beta;
+    paramsPos[1] *= beta;
+    paramsPos[4] *= beta*beta;
+    double lambda = 0;
+    std::vector<double> u = linspacing(-17.0, 4.9, .4);
+    int m = u.size();
+    std::vector<dcomp> I1(m);
+    for (int k = 0; k < m; k++) {
+        I1[k] = (1.0-i1/exp(u[k]))/(1.0+pow(exp(u[k]),2))*exp(u[k])*CFa(dcomp(exp(u[k]),0.0), paramsPos, lambda, tau, 0);
+    }
+    return 1/beta*attariPre(F, F*(1- beta) + beta*K, rd, tau, u, I1); 
+}
+
 // [[Rcpp::export]]
 double hestonAttari2(std::vector<double> paramsPos, double F, double K, double rd, double tau)
 {
@@ -830,6 +931,32 @@ double hestonAttari2(std::vector<double> paramsPos, double F, double K, double r
 		I1[k] = CFa(dcomp(exp(u[k]),0.0), paramsPos, lambda, tau, 0);
 	}
 	return attariPre2(F, K, rd, tau, u, I1);	
+}
+
+// [[Rcpp::export]]
+double hestonDDAttari2(std::vector<double> paramsPos, double F, double K, double rd, double tau)
+{
+    double lambda = 0;
+    std::vector<double> u = linspacing(-17.0, 4.9, .4);
+    int m = u.size();
+    std::vector<dcomp> I1(m);
+    for (int k = 0; k < m; k++) {
+        I1[k] = CFaDD(dcomp(exp(u[k]),0.0), paramsPos, lambda, tau, 0);
+    }
+    return attariPre2(F, K, rd, tau, u, I1);    
+}
+
+// [[Rcpp::export]]
+double hestonDD2Attari2(std::vector<double> paramsPos, double F, double K, double rd, double tau)
+{
+    double lambda = 0;
+    std::vector<double> u = linspacing(-17.0, 4.9, .4);
+    int m = u.size();
+    std::vector<dcomp> I1(m);
+    for (int k = 0; k < m; k++) {
+        I1[k] = CFaDD2(dcomp(exp(u[k]),0.0), paramsPos, lambda, tau, 0);
+    }
+    return attariPre2(F, K, rd, tau, u, I1);    
 }
 
 // [[Rcpp::export]]
@@ -871,6 +998,19 @@ double szAttari(std::vector<double> paramsPos, double F, double K, double rd, do
 	return attariPre(F, K, rd, tau, u, I1);	
 }
 
+// [[Rcpp::export]]
+double szDDAttari(std::vector<double> paramsPos, double F, double K, double rd, double tau)
+{
+    double lambda = 0;
+    std::vector<double> u = linspacing(-17.0, 4.9, .4);
+    int m = u.size();
+    std::vector<dcomp> I1(m);
+    for (int k = 0; k < m; k++) {
+        I1[k] = (1.0-i1/exp(u[k]))/(1.0+pow(exp(u[k]),2))*exp(u[k])*CFaSZDD(dcomp(exp(u[k]),0.0), paramsPos, lambda, tau, 0);
+    }
+    return attariPre(F, K, rd, tau, u, I1); 
+}
+
 bool feller(std::vector<double> params)
 {
 	bool x;
@@ -903,7 +1043,7 @@ double ModelErr(
 	std::vector<double> params,
 	std::vector<std::vector<std::vector<double> > > args)
 {
-	int quantity = params.size();
+	//int quantity = params.size();
 	std::vector<std::vector<double> > K = args[0];
 	std::vector<std::vector<double> > data = args[1];
 	std::vector<std::vector<double> > vega = args[2];
@@ -913,6 +1053,7 @@ double ModelErr(
 	int errType = (int)args[3][3][0];
 	int modType = (int)args[3][3][1];
 	int fellerMust = (int)args[3][3][2];
+    int quantity = (int)args[3][3][3];
 	int modsize;
 	switch (modType) {
 		case 1: modsize = 5; break;
@@ -920,8 +1061,11 @@ double ModelErr(
 		case 3: modsize = 10; break;
 		case 4: modsize = 10; break;
 		case 5: modsize = 10; break;
+        case 6: modsize = 6; break;
 	}	
+    //if(quantity==55) modsize += 1; //for Heston + DD
 	std::vector<double> paramsPos(modsize);
+    double beta;
 	//const int m=200;
 	switch (quantity) {
 	case 8: {
@@ -941,7 +1085,7 @@ double ModelErr(
 		paramsPos[2] = tanh(params[2]);
 		paramsPos[7] = tanh(params[7]);
 		break; }
-	case 6: {
+	case 66: {
 		paramsPos[0] = exp(params[0]);
 		paramsPos[1] = args[3][4][0];
 		paramsPos[2] = args[3][4][1];
@@ -970,13 +1114,20 @@ double ModelErr(
 		paramsPos[2] = tanh(params[2]);
 		break; }
 		//theta,om,rho,ka,nu
-	case 3: {
+	case 33: {
 		paramsPos[0] = exp(params[0]);
 		paramsPos[1] = args[3][4][0];
 		paramsPos[2] = args[3][4][1];
 		paramsPos[3] = exp(params[1]);
 		paramsPos[4] = exp(params[2]);
 		break; }
+    case 3: {
+        paramsPos[0] = exp(params[0]);
+        paramsPos[1] = exp(params[1]);
+        paramsPos[2] = tanh(params[2]);
+        paramsPos[3] = args[3][4][0];
+        paramsPos[4] = args[3][4][1];
+        break; }        
 	/*case 2: {
 		paramsPos[0] = args[3][4][0];
 		paramsPos[1] = args[3][4][1];
@@ -996,6 +1147,19 @@ double ModelErr(
 		paramsPos[3] = args[3][4][1];
 		paramsPos[4] = args[3][4][2];
 		break; }
+    case 22: {//for DD
+        paramsPos[0] = args[3][4][0];
+        paramsPos[1] = exp(params[0]);
+        paramsPos[2] = args[3][4][1];
+        beta = (1+tanh(params[1]))/2;
+        paramsPos[3] = args[3][4][2];
+        paramsPos[4] = args[3][4][3];
+        break; }
+    case 6: {
+        paramsPos = expv(params);
+        paramsPos[2] = tanh(params[2]);
+        beta = (1+tanh(params[5]))/2;
+        break; }        
 	}
 	double lambda = 0, err = 0;
 	std::vector<double> paramsPos2(10);
@@ -1014,6 +1178,11 @@ double ModelErr(
 	std::vector<dcomp> I1(m);
 	//#if (2*kappa*theta<sigma**2) //#feller cond.
 	int n = tau.size();
+    if (errType==11) {
+        paramsPos[0] *= beta*beta;
+        paramsPos[1] *= beta;
+        paramsPos[4] *= beta*beta;
+    }
 	if (!feller(paramsPos) && fellerMust==1)
 		err=9999;
 	else if (!feller2(paramsPos) && fellerMust==2)
@@ -1043,7 +1212,7 @@ double ModelErr(
 			//std::vector<double> paramsPos2 = rep(paramsPos,2);
 			for (int k = 0; k < m; k++)
 				I1[k] = (1.0-i1/exp(u[k]))/(1.0+pow(exp(u[k]),2))*exp(u[k])*CFaSZ2d(dcomp(exp(u[k]),0.0), paramsPos2, lambda, tau[i], 0);
-			break; }		
+			break; }
 		}
 		switch (errType) {
 		case 1://SSE
@@ -1052,6 +1221,12 @@ double ModelErr(
 				err += pow(attariPre(F[i], K[i][j], rd[i], tau[i], u, I1)/vega[i][j] - data[i][j],2);
 			}
 			break;
+        case 11://SSE for DD
+            for (int j = 0; j < 5; j++)
+            {
+                err += pow(1/beta*attariPre(F[i], F[i]*(1-beta) + beta*K[i][j], rd[i], tau[i], u, I1)/vega[i][j] - data[i][j],2);
+            }
+            break;            
 		case 2://SAE
 			for (int j = 0; j < 5; j++)
 			{
@@ -1069,6 +1244,8 @@ double ModelErr(
 	return err;
 }
 
+//std::vector<double> nlOpter(
+//double nlOpter(
 
 // [[Rcpp::export]]
 std::vector<double> nlOpter(
@@ -1103,8 +1280,18 @@ std::vector<double> nlOpter(
 	types.push_back((double)errType);
 	types.push_back((double)modType);
 	types.push_back((double)fellerMust);
+    types.push_back((double)quantity);
 	std::vector<double> other;
 	std::vector<double> init(quantity);
+    int modsize;
+    switch (modType) {
+        case 1: modsize = 5; break;
+        case 2: modsize = 5; break;
+        case 3: modsize = 10; break;
+        case 4: modsize = 10; break;
+        case 5: modsize = 10; break;
+        case 6: modsize = 6; break;
+    }   
 	switch (quantity) {
 	case 8: {
 		init[0] = log(params[0]);
@@ -1123,7 +1310,7 @@ std::vector<double> nlOpter(
 		init[2] = atanh(params[2]);	
 		init[7] = atanh(params[7]);	
 		break; }
-	case 6: {
+	case 66: {// tmp change, prev: case 6: {
 		init[0] = log(params[0]);
 		init[1] = log(params[3]);
 		init[2] = log(params[4]);
@@ -1151,13 +1338,20 @@ std::vector<double> nlOpter(
 		init = logv(params);		
 		init[2] = atanh(params[2]);
 		break; }
-	case 3: {
+	case 33: { //return to 3 later
 		init[0] = log(params[0]);
 		init[1] = log(params[3]);
 		init[2] = log(params[4]);
 		other.push_back(params[1]);
 		other.push_back(params[2]);
 		break; }
+    case 3: {
+        init[0] = log(params[0]);
+        init[1] = log(params[1]);
+        init[2] = atanh(params[2]);
+        other.push_back(params[3]);
+        other.push_back(params[4]);
+        break; }
 	/*case 2: {
 		other.push_back(params[0]);
 		other.push_back(params[1]);
@@ -1170,13 +1364,26 @@ std::vector<double> nlOpter(
 		init[0] = log(params[4]);
 		init[1] = log(params[9]);		
 		break; }	*/
-	case 2: {
+	case 2: {// tmp change, prev: case 2: {
 		init[0] = log(params[1]);
 		init[1] = atanh(params[2]);
 		other.push_back(params[0]);
 		other.push_back(params[3]);
 		other.push_back(params[4]);
 		break;}
+    case 22: {//4 param Heston with DD, only beta and omega
+        init[0] = log(params[1]);
+        init[1] = atanh(2*params[5]-1);
+        other.push_back(params[0]);
+        other.push_back(params[2]);
+        other.push_back(params[3]);
+        other.push_back(params[4]);
+        break;}   
+    case 6: {// for 5 param heston with DD
+        init = logv(params);        
+        init[2] = atanh(params[2]);
+        init[5] = atanh(2*params[5]-1);
+        break; }
 	}
 	rates.push_back(types);
 	rates.push_back(other);
@@ -1185,7 +1392,8 @@ std::vector<double> nlOpter(
 	//printcon(BT::Simplex(HestonErr, init, args, 1e-11));
 	//return HestonErr(init,args);
 	std::vector<double> out_opt = expv(BT::Simplex(ModelErr, init, args, 1e-11,max_it, logfile));
-	std::vector<double> out(params.size());
+	//std::vector<double> out(out_opt.size()); // <- this may not make any sense, we want out.size()==modelpar.size()
+    std::vector<double> out(modsize);
 	switch (quantity) {
 	case 8: //all but nu0 1&2
 		out[0] = out_opt[0];
@@ -1204,7 +1412,7 @@ std::vector<double> nlOpter(
 		out[2] = tanh(log(out_opt[2]));
 		out[7] = tanh(log(out_opt[7]));		
 		break;
-	case 6://all but rho and omega
+	case 66: // tmp change, prev: case 6://all but rho and omega
 		out[0] = out_opt[0];
 		out[1] = params[1];
 		out[2] = params[2];
@@ -1232,13 +1440,20 @@ std::vector<double> nlOpter(
 		out = out_opt;
 		out[2] = tanh(log(out_opt[2]));
 		break;
-	case 3://all but rho and omega
+	case 33://all but rho and omega
 		out[0] = out_opt[0];
 		out[1] = params[1];
 		out[2] = params[2];
 		out[3] = out_opt[1];
 		out[4] = out_opt[2];
 		break;
+    case 3://all but nu0 and kappa
+        out[0] = out_opt[0];
+        out[1] = out_opt[1];
+        out[2] = tanh(log(out_opt[2]));
+        out[3] = params[3];
+        out[4] = params[4];
+        break;        
 	/*case 2: // only nu0 1&2
 		out[0] = params[0];
 		out[1] = params[1];
@@ -1251,15 +1466,28 @@ std::vector<double> nlOpter(
 		out[8] = params[8];
 		out[9] = out_opt[1];
 		break;	*/
-	case 2: //only rho and omega
+	case 2: //only rho and omega // tmp change prev case 2:
 		out[0] = params[0];
 		out[1] = out_opt[0];
 		out[2] = tanh(log(out_opt[1]));
 		out[3] = params[3];
 		out[4] = params[4];
 		break;
+    case 22: //only DD and omega
+        out[0] = params[0];
+        out[1] = out_opt[0];
+        out[2] = params[2];
+        out[3] = params[3];
+        out[4] = params[4];
+        out[5] = (1+tanh(log(out_opt[1])))/2;
+        break;   
+    case 6: // all 5 + DD
+        out = out_opt;
+        out[2] = tanh(log(out_opt[2]));
+        out[5] = (1+tanh(log(out_opt[5])))/2;
+        break;
 	}
-	if (err) out.push_back(sqrt(ModelErr(logv(out_opt),args)/30));
+    if (err) out.push_back(sqrt(ModelErr(logv(out_opt),args)/30));
 	return out;
 }
 
